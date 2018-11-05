@@ -41,7 +41,6 @@ class BraveRenderMessageFilter : public ChromeRenderMessageFilter {
                         bool* allowed);
 
   HostContentSettingsMap *host_content_settings_map_;
-
   DISALLOW_COPY_AND_ASSIGN(BraveRenderMessageFilter);
 };
 

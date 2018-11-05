@@ -9,6 +9,14 @@
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/render_messages.h"
+#include "content/browser/frame_host/navigation_handle_impl.h"
+#include "content/browser/frame_host/render_frame_host_impl.h"
+#include "content/public/browser/browser_thread.h"
+
+using content::BrowserThread;
+using content::NavigationHandleImpl;
+using content::RenderFrameHost;
+using content::RenderFrameHostImpl;
 
 BraveRenderMessageFilter::BraveRenderMessageFilter(int render_process_id, 
 	Profile* profile)
@@ -38,7 +46,7 @@ void BraveRenderMessageFilter::OnAllowDatabase(int render_frame_id,
                bool* allowed) {
   CHECK(g_brave_browser_process->tracking_protection_service()->IsInitialized());
   *allowed = g_brave_browser_process->tracking_protection_service()->ShouldStoreState(host_content_settings_map_, 
-    origin_url, top_origin_url);
+    render_process_id_, render_frame_id, origin_url, top_origin_url);
 
   if (*allowed) {
     ChromeRenderMessageFilter::OnAllowDatabase(render_frame_id, origin_url, top_origin_url, 
@@ -53,7 +61,7 @@ void BraveRenderMessageFilter::OnAllowDOMStorage(int render_frame_id,
                                                   bool* allowed) {
   CHECK(g_brave_browser_process->tracking_protection_service()->IsInitialized());
   *allowed = g_brave_browser_process->tracking_protection_service()->ShouldStoreState(host_content_settings_map_, 
-    origin_url, top_origin_url);
+    render_process_id_, render_frame_id, origin_url, top_origin_url);
 
   if (*allowed) {
     ChromeRenderMessageFilter::OnAllowDOMStorage(render_frame_id, origin_url, top_origin_url, 
@@ -69,7 +77,7 @@ void BraveRenderMessageFilter::OnAllowIndexedDB(int render_frame_id,
                                                  bool* allowed) {
   CHECK(g_brave_browser_process->tracking_protection_service()->IsInitialized());
   *allowed = g_brave_browser_process->tracking_protection_service()->ShouldStoreState(host_content_settings_map_,
-    origin_url, top_origin_url);
+    render_process_id_, render_frame_id, origin_url, top_origin_url);
 
   if (*allowed) {
     ChromeRenderMessageFilter::OnAllowIndexedDB(render_frame_id, origin_url, top_origin_url, name, allowed);

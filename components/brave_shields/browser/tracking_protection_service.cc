@@ -18,9 +18,11 @@
 #include "brave/components/brave_shields/browser/ad_block_service.h"
 #include "brave/components/brave_shields/browser/brave_shields_util.h"
 #include "brave/components/brave_shields/browser/dat_file_util.h"
+#include "brave/components/brave_shields/browser/tracking_protection_helper.h"
 #include "brave/components/brave_shields/common/brave_shield_constants.h"
 #include "brave/vendor/tracking-protection/TPParser.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "content/public/browser/web_contents.h"
 
 #define NAVIGATION_TRACKERS_FILE "TrackingProtection.dat"
 #define STORAGE_TRACKERS_FILE "StorageTrackingProtection.dat"
@@ -96,7 +98,8 @@ bool TrackingProtectionService::ShouldStartRequest(const GURL& url,
 }
 
 bool TrackingProtectionService::ShouldStoreState(HostContentSettingsMap* map, 
-  const GURL& top_origin_url, const GURL& origin_url) {
+  int render_process_id, int render_frame_id, const GURL& top_origin_url, 
+  const GURL& origin_url) {
 
   if (!first_party_storage_trackers_initailized_) {
     LOG(INFO) << "First party storage trackers not initialized";
@@ -104,12 +107,15 @@ bool TrackingProtectionService::ShouldStoreState(HostContentSettingsMap* map,
   }  
   std::string host = origin_url.host();
 
-  bool allow_brave_shields = IsAllowContentSetting(
-      map, top_origin_url, origin_url, CONTENT_SETTINGS_TYPE_PLUGINS,
+  GURL starting_site = TrackingProtectionHelper::GetStartingSiteURLFromRenderFrameInfo(
+    render_process_id, render_frame_id);
+
+  bool allow_brave_shields = starting_site == GURL() ? true : IsAllowContentSetting(
+      map, starting_site, starting_site, CONTENT_SETTINGS_TYPE_PLUGINS,
       brave_shields::kBraveShields);
 
-  bool allow_trackers = IsAllowContentSetting(
-      map, top_origin_url, origin_url, CONTENT_SETTINGS_TYPE_PLUGINS, 
+  bool allow_trackers = starting_site == GURL() ? false : IsAllowContentSetting(
+      map, starting_site, starting_site, CONTENT_SETTINGS_TYPE_PLUGINS, 
       brave_shields::kTrackers);
 
   bool denyStorage = std::find(first_party_storage_trackers_.begin(), 

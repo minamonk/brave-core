@@ -50,7 +50,8 @@ class TrackingProtectionService : public BaseBraveShieldsService {
   scoped_refptr<base::SequencedTaskRunner> GetTaskRunner() override;
 
   bool ShouldStoreState(HostContentSettingsMap* map, 
-    const GURL& top_origin_url, const GURL& origin_url);
+    int render_process_id, int render_frame_id, const GURL& top_origin_url, 
+    const GURL& origin_url);
 
  protected:
   bool Init() override;
