@@ -53,9 +53,10 @@ private:
   std::string ToQueryString(const std::string& data);
 
   // Content permissions.
-  void RelaxContentPermissions();
+  void RelaxContentPermissions(content::WebContents* initiator);
   void AllowShieldsFingerprinting(HostContentSettingsMap* map);
   void AllowShieldsCookies(HostContentSettingsMap* map);
+  void AllowShieldsScripts(HostContentSettingsMap* map);
   void AllowCameraAccess(HostContentSettingsMap* map);
   void AllowAutoplay(HostContentSettingsMap* map);
   
@@ -69,6 +70,7 @@ private:
   void ResetContentPermissions();
   void ResetShieldsFingerprinting(HostContentSettingsMap* map);
   void ResetShieldsCookies(HostContentSettingsMap* map);
+  void ResetShieldsScripts(HostContentSettingsMap* map);
   void ResetCameraAccess(HostContentSettingsMap* map);
   void ResetAutoplay(HostContentSettingsMap* map);
 
@@ -91,6 +93,7 @@ private:
   ContentSetting fingerprinting_setting_fp_;
   ContentSetting camera_setting_;
   ContentSetting autoplay_setting_;
+  bool allowed_scripts;
 
   DISALLOW_COPY_AND_ASSIGN(AddFundsPopup);
 };

@@ -54,6 +54,10 @@ namespace {
 #endif
   const char kFirstParty[] = "https://firstParty";
 
+  const char kUpholdPattern[] = "https://[*.]uphold.com/*";
+  const char kNetverifyPattern[] = "https://[*.]netverify.com/*";
+  const char kTypekitPattern[] = "https://use.typekit.net/*";
+
   const std::map<std::string, std::string> kCurrencyToNetworkMap{
       {"BTC", "bitcoin"},
       {"BAT", "ethereum"},
@@ -64,7 +68,8 @@ namespace {
 
 namespace brave_rewards {
 
-AddFundsPopup::AddFundsPopup() : add_funds_popup_(nullptr), profile_(nullptr) {}
+AddFundsPopup::AddFundsPopup()
+    : add_funds_popup_(nullptr), profile_(nullptr), allowed_scripts(false) {}
 
 AddFundsPopup::~AddFundsPopup() {
   ClosePopup();
@@ -115,11 +120,16 @@ void AddFundsPopup::OpenPopup(content::WebContents* initiator,
     std::string("Content-Type: application/x-www-form-urlencoded\r\n") +
     "Content-Length: " + std::to_string(data.size()) + "\r\n\r\n";
 
+  // Let popup content bypass shields, use camera and autoplay.
+  RelaxContentPermissions(initiator);
+
   // Open the popup.
   add_funds_popup_ = wc_delegate->OpenURLFromTab(initiator, params);
   DCHECK(add_funds_popup_);
-  if (!add_funds_popup_)
+  if (!add_funds_popup_) {
+    ResetContentPermissions();
     return;
+  }
 
   views::Widget* topLevelWidget = views::Widget::GetTopLevelWidgetForNativeView(
     add_funds_popup_->GetNativeView());
@@ -129,10 +139,11 @@ void AddFundsPopup::OpenPopup(content::WebContents* initiator,
     // Reposition/resize the new popup.
     gfx::Rect popup_bounds = CalculatePopupWindowBounds(initiator);
     topLevelWidget->SetBounds(popup_bounds);
-    // Let Uphold content bypass shields, use camera and autoplay. Only do this
-    // if we added an observer, otherwise we won't be able to reset when the
-    // popup closes.
-    RelaxContentPermissions();
+  } else {
+    // If we can't add an observer won't be able to reset when the popup closes
+    // and generally this is not a good sign, so don't bother with the popup.
+    ResetContentPermissions();
+    ClosePopup();
   }
 }
 
@@ -212,15 +223,17 @@ gfx::Rect AddFundsPopup::CalculatePopupWindowBounds(WebContents* initiator) {
   return popup_bounds;
 }
 
-void AddFundsPopup::RelaxContentPermissions() {
+void AddFundsPopup::RelaxContentPermissions(content::WebContents* initiator) {
+  DCHECK(initiator);
   // Get contents settings map for the current profile.
-  profile_ = Profile::FromBrowserContext(add_funds_popup_->GetBrowserContext());
+  profile_ = Profile::FromBrowserContext(initiator->GetBrowserContext());
   DCHECK(profile_ && !profile_->IsOffTheRecord());
   HostContentSettingsMap* map =
     HostContentSettingsMapFactory::GetForProfile(profile_);
 
   AllowShieldsFingerprinting(map);
   AllowShieldsCookies(map);
+  AllowShieldsScripts(map);
   AllowCameraAccess(map);
   AllowAutoplay(map);
 }
@@ -244,6 +257,32 @@ void AddFundsPopup::AllowShieldsCookies(HostContentSettingsMap* map) {
   cookies_setting_fp_ = SetContentSetting(
       map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
       CONTENT_SETTING_ALLOW, brave_shields::kCookies);
+}
+
+void AddFundsPopup::AllowShieldsScripts(HostContentSettingsMap* map) {
+  // Check if shields scripts setting is turned to disallow scripts.
+  if (map->GetContentSetting(GURL(), GURL(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+                             std::string()) != CONTENT_SETTING_ALLOW) {
+    // Allow scripts from our host, uphold.com, and netverify.com.
+    const ContentSettingsPattern pattern =
+      ContentSettingsPattern::FromString(std::string(kBraveHost) + "/*");
+    map->SetContentSettingCustomScope(
+        pattern, ContentSettingsPattern::Wildcard(),
+        CONTENT_SETTINGS_TYPE_JAVASCRIPT, std::string(), CONTENT_SETTING_ALLOW);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kUpholdPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_ALLOW);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kNetverifyPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_ALLOW);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kTypekitPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_ALLOW);
+    allowed_scripts = true;
+  }
 }
 
 void AddFundsPopup::AllowCameraAccess(HostContentSettingsMap* map) {
@@ -313,6 +352,7 @@ void AddFundsPopup::ResetContentPermissions() {
 
   ResetShieldsFingerprinting(map);
   ResetShieldsCookies(map);
+  ResetShieldsScripts(map);
   ResetCameraAccess(map);
   ResetAutoplay(map);
 }
@@ -331,6 +371,30 @@ void AddFundsPopup::ResetShieldsCookies(HostContentSettingsMap* map) {
                     cookies_setting_, brave_shields::kCookies);
   SetContentSetting(map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
                     cookies_setting_fp_, brave_shields::kCookies);
+}
+
+void AddFundsPopup::ResetShieldsScripts(HostContentSettingsMap* map) {
+  if (allowed_scripts) {
+    // Delete entries for our host, uphold.com, and netverify.com.
+    const ContentSettingsPattern pattern =
+      ContentSettingsPattern::FromString(std::string(kBraveHost) + "/*");
+    map->SetContentSettingCustomScope(
+      pattern, ContentSettingsPattern::Wildcard(),
+      CONTENT_SETTINGS_TYPE_JAVASCRIPT, std::string(), CONTENT_SETTING_DEFAULT);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kUpholdPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_DEFAULT);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kNetverifyPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_DEFAULT);
+    map->SetContentSettingCustomScope(
+        ContentSettingsPattern::FromString(kTypekitPattern),
+        ContentSettingsPattern::Wildcard(), CONTENT_SETTINGS_TYPE_JAVASCRIPT,
+        std::string(), CONTENT_SETTING_DEFAULT);
+    allowed_scripts = false;
+  }
 }
 
 void AddFundsPopup::ResetCameraAccess(HostContentSettingsMap* map) {
