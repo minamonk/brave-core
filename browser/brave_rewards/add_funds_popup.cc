@@ -52,7 +52,6 @@ namespace {
 #else
   const char kBraveHost[] = "https://uphold-widget-uhocggaamg.now.sh";
 #endif
-  const char kUpholdHost[] = "https://sandbox.uphold.com";
   const char kFirstParty[] = "https://firstParty";
 
   const std::map<std::string, std::string> kCurrencyToNetworkMap{
@@ -220,34 +219,43 @@ void AddFundsPopup::RelaxContentPermissions() {
   HostContentSettingsMap* map =
     HostContentSettingsMapFactory::GetForProfile(profile_);
 
+  AllowShieldsFingerprinting(map);
+  AllowShieldsCookies(map);
+  AllowCameraAccess(map);
+  AllowAutoplay(map);
+}
+
+void AddFundsPopup::AllowShieldsFingerprinting(HostContentSettingsMap* map) {
   fingerprinting_setting_ =
-    DisableShieldsFingerprinting(map, kBraveHost, nullptr);
-  fingerprinting_setting_fp_ =
-    DisableShieldsFingerprinting(map, kBraveHost, kFirstParty);
-  camera_setting_ = AllowCameraAccess(map, kUpholdHost);
-  autoplay_setting_ = AllowAutoplay(map, kUpholdHost);
+      SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                        CONTENT_SETTING_ALLOW, brave_shields::kFingerprinting);
+  fingerprinting_setting_fp_ = SetContentSetting(
+      map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
+      CONTENT_SETTING_ALLOW, brave_shields::kFingerprinting);
 }
 
-ContentSetting AddFundsPopup::DisableShieldsFingerprinting(
-  HostContentSettingsMap* map,
-  const char* host,
-  const char* secondary) {
-  return SetContentSetting(map, host, secondary, CONTENT_SETTINGS_TYPE_PLUGINS,
-    CONTENT_SETTING_ALLOW,
-    brave_shields::kFingerprinting);
+void AddFundsPopup::AllowShieldsCookies(HostContentSettingsMap* map) {
+  referrers_setting_ =
+      SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                        CONTENT_SETTING_ALLOW, brave_shields::kReferrers);
+  cookies_setting_ =
+      SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                        CONTENT_SETTING_ALLOW, brave_shields::kCookies);
+  cookies_setting_fp_ = SetContentSetting(
+      map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
+      CONTENT_SETTING_ALLOW, brave_shields::kCookies);
 }
 
-ContentSetting AddFundsPopup::AllowCameraAccess(HostContentSettingsMap* map,
-  const char* host) {
-  return SetContentSetting(map, host, nullptr,
-    CONTENT_SETTINGS_TYPE_MEDIASTREAM_CAMERA,
-    CONTENT_SETTING_ALLOW, std::string());
+void AddFundsPopup::AllowCameraAccess(HostContentSettingsMap* map) {
+  camera_setting_ = SetContentSetting(map, kBraveHost, nullptr,
+                                      CONTENT_SETTINGS_TYPE_MEDIASTREAM_CAMERA,
+                                      CONTENT_SETTING_ALLOW, std::string());
 }
 
-ContentSetting AddFundsPopup::AllowAutoplay(HostContentSettingsMap* map,
-  const char* host) {
-  return SetContentSetting(map, host, nullptr, CONTENT_SETTINGS_TYPE_AUTOPLAY,
-    CONTENT_SETTING_ALLOW, std::string());
+void AddFundsPopup::AllowAutoplay(HostContentSettingsMap* map) {
+  autoplay_setting_ = SetContentSetting(map, kBraveHost, nullptr,
+                                        CONTENT_SETTINGS_TYPE_AUTOPLAY,
+                                        CONTENT_SETTING_ALLOW, std::string());
 }
 
 ContentSetting AddFundsPopup::SetContentSetting(HostContentSettingsMap* map,
@@ -303,32 +311,37 @@ void AddFundsPopup::ResetContentPermissions() {
   HostContentSettingsMap* map =
     HostContentSettingsMapFactory::GetForProfile(profile_);
 
-  ResetShieldsFingerprinting(map, kBraveHost, nullptr, fingerprinting_setting_);
-  ResetShieldsFingerprinting(map, kBraveHost, kFirstParty,
-    fingerprinting_setting_fp_);
-  ResetCameraAccess(map, kUpholdHost);
-  ResetAutoplay(map, kUpholdHost);
+  ResetShieldsFingerprinting(map);
+  ResetShieldsCookies(map);
+  ResetCameraAccess(map);
+  ResetAutoplay(map);
 }
 
-void AddFundsPopup::ResetShieldsFingerprinting(HostContentSettingsMap* map,
-                                               const char* host,
-                                               const char* secondary,
-                                               ContentSetting setting) {
-  SetContentSetting(map, host, secondary, CONTENT_SETTINGS_TYPE_PLUGINS,
-                    setting, brave_shields::kFingerprinting);
+void AddFundsPopup::ResetShieldsFingerprinting(HostContentSettingsMap* map) {
+  SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                    fingerprinting_setting_, brave_shields::kFingerprinting);
+  SetContentSetting(map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
+                    fingerprinting_setting_fp_, brave_shields::kFingerprinting);
 }
 
-void AddFundsPopup::ResetCameraAccess(HostContentSettingsMap* map,
-  const char* host) {
-  ResetContentSetting(map, kUpholdHost,
-    CONTENT_SETTINGS_TYPE_MEDIASTREAM_CAMERA,
-    camera_setting_);
+void AddFundsPopup::ResetShieldsCookies(HostContentSettingsMap* map) {
+  SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                    referrers_setting_, brave_shields::kReferrers);
+  SetContentSetting(map, kBraveHost, nullptr, CONTENT_SETTINGS_TYPE_PLUGINS,
+                    cookies_setting_, brave_shields::kCookies);
+  SetContentSetting(map, kBraveHost, kFirstParty, CONTENT_SETTINGS_TYPE_PLUGINS,
+                    cookies_setting_fp_, brave_shields::kCookies);
 }
 
-void AddFundsPopup::ResetAutoplay(HostContentSettingsMap* map,
-  const char* host) {
-  ResetContentSetting(map, kUpholdHost, CONTENT_SETTINGS_TYPE_AUTOPLAY,
-    autoplay_setting_);
+void AddFundsPopup::ResetCameraAccess(HostContentSettingsMap* map) {
+  ResetContentSetting(map, kBraveHost,
+                      CONTENT_SETTINGS_TYPE_MEDIASTREAM_CAMERA,
+                      camera_setting_);
+}
+
+void AddFundsPopup::ResetAutoplay(HostContentSettingsMap* map) {
+  ResetContentSetting(map, kBraveHost, CONTENT_SETTINGS_TYPE_AUTOPLAY,
+                      autoplay_setting_);
 }
 
 void AddFundsPopup::ResetContentSetting(HostContentSettingsMap* map,

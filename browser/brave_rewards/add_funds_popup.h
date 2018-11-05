@@ -54,12 +54,10 @@ private:
 
   // Content permissions.
   void RelaxContentPermissions();
-  ContentSetting DisableShieldsFingerprinting(HostContentSettingsMap* map,
-                                              const char* host,
-                                              const char* secondary);
-  ContentSetting AllowCameraAccess(HostContentSettingsMap* map,
-                                   const char* host);
-  ContentSetting AllowAutoplay(HostContentSettingsMap* map, const char* host);
+  void AllowShieldsFingerprinting(HostContentSettingsMap* map);
+  void AllowShieldsCookies(HostContentSettingsMap* map);
+  void AllowCameraAccess(HostContentSettingsMap* map);
+  void AllowAutoplay(HostContentSettingsMap* map);
   
   ContentSetting SetContentSetting(HostContentSettingsMap* map,
     const char* host,
@@ -69,12 +67,11 @@ private:
     const std::string& resource_identifier);
 
   void ResetContentPermissions();
-  void ResetShieldsFingerprinting(HostContentSettingsMap* map,
-                                  const char* host,
-                                  const char* secondary,
-                                  ContentSetting setting);
-  void ResetCameraAccess(HostContentSettingsMap* map, const char* host);
-  void ResetAutoplay(HostContentSettingsMap* map, const char* host);
+  void ResetShieldsFingerprinting(HostContentSettingsMap* map);
+  void ResetShieldsCookies(HostContentSettingsMap* map);
+  void ResetCameraAccess(HostContentSettingsMap* map);
+  void ResetAutoplay(HostContentSettingsMap* map);
+
   void ResetContentSetting(HostContentSettingsMap* map,
     const char* host,
     ContentSettingsType type,
@@ -87,6 +84,9 @@ private:
   Profile* profile_;
 
   // Content settings.
+  ContentSetting referrers_setting_;
+  ContentSetting cookies_setting_;
+  ContentSetting cookies_setting_fp_;
   ContentSetting fingerprinting_setting_;
   ContentSetting fingerprinting_setting_fp_;
   ContentSetting camera_setting_;
