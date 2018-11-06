@@ -85,6 +85,9 @@ private:
   // Profile for which content setting have been altered.
   Profile* profile_;
 
+  // Rewards service to reload wallet info.
+  brave_rewards::RewardsService* rewards_service_;  // NOT OWNED
+
   // Content settings.
   ContentSetting referrers_setting_;
   ContentSetting cookies_setting_;

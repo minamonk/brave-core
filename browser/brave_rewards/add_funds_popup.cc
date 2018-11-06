@@ -43,14 +43,14 @@ namespace {
 #if TESTING
   const char kAddFundsUrl[] = "http://localhost:8000/uphold/index.html";
 #else
-  const char kAddFundsUrl[] = "https://uphold-widget-uhocggaamg.now.sh/index.html";
+  const char kAddFundsUrl[] = "https://uphold-widget.herokuapp.com/index.php";
 #endif
 
   // Content permission URLs.
 #if TESTING
   const char kBraveHost[] = "http://localhost:8000";
 #else
-  const char kBraveHost[] = "https://uphold-widget-uhocggaamg.now.sh";
+  const char kBraveHost[] = "https://uphold-widget.herokuapp.com/";
 #endif
   const char kFirstParty[] = "https://firstParty";
 
@@ -69,7 +69,10 @@ namespace {
 namespace brave_rewards {
 
 AddFundsPopup::AddFundsPopup()
-    : add_funds_popup_(nullptr), profile_(nullptr), allowed_scripts(false) {}
+    : add_funds_popup_(nullptr),
+      profile_(nullptr),
+      rewards_service_(nullptr),
+      allowed_scripts(false) {}
 
 AddFundsPopup::~AddFundsPopup() {
   ClosePopup();
@@ -139,6 +142,9 @@ void AddFundsPopup::OpenPopup(content::WebContents* initiator,
     // Reposition/resize the new popup.
     gfx::Rect popup_bounds = CalculatePopupWindowBounds(initiator);
     topLevelWidget->SetBounds(popup_bounds);
+    // Stash rewards service pointer so that we can call it to update wallet
+    // info when the popup is closed by the user.
+    rewards_service_ = rewards_service;
   } else {
     // If we can't add an observer won't be able to reset when the popup closes
     // and generally this is not a good sign, so don't bother with the popup.
@@ -165,6 +171,8 @@ void AddFundsPopup::OnWidgetClosing(views::Widget* widget) {
   widget->RemoveObserver(this);
   ResetContentPermissions();
   add_funds_popup_ = nullptr;
+  if (rewards_service_)
+    rewards_service_->GetWalletProperties();
 }
 
 std::string AddFundsPopup::GetAddressesAsJSON(
